@@ -9,7 +9,7 @@ Streams whatever is playing on one PC's speakers to another PC on the same netwo
 Download `OneAudio-Setup-<version>.exe` from [Releases](https://github.com/Escillex/OneAudio/releases) and run it on **both** PCs. The installer:
 
 - installs `oneaudio-send` and `oneaudio-receive`
-- adds them to `PATH`, so they work from any terminal (open a new one after installing)
+- adds them to `PATH`, so they work from any terminal (restart your terminal app after installing, not just a new tab)
 - optionally adds a Windows Firewall rule letting the receiver accept audio on Private networks
 
 Uninstalling from *Settings → Apps* removes the files, the `PATH` entry and the firewall rule.
@@ -18,23 +18,37 @@ Prefer no installer? The release also has standalone `oneaudio-send.exe` and `on
 
 ## Usage
 
-1. On the receiving PC, find its IP: run `ipconfig` and note the **IPv4 Address** (e.g. `192.168.1.42`).
-2. On the receiving PC:
+1. On the receiving PC:
    ```
    oneaudio-receive
    ```
-3. On the sending PC, pass the receiver's IP:
+2. On the sending PC:
    ```
-   oneaudio-send 192.168.1.42
+   oneaudio-send
    ```
-4. Play something on the sending PC.
+   It finds receivers on your network automatically. With one, it connects right away. With several, it lists them by PC name so you can pick one.
+3. Play something on the sending PC.
 
 Ctrl+C stops either side, and the other side keeps running. Restart the sender any time and audio resumes on its own.
 
 | Command | Options |
 |---|---|
-| `oneaudio-send <receiver_ip>` | `--port 50007` |
+| `oneaudio-send [receiver_ip]` | `--port 50007` `-m` / `--mute` |
 | `oneaudio-receive` | `--port 50007` `--buffer-ms 40` |
+
+- `-m` mutes the sending PC's speakers while streaming, so audio only plays on the receiver. Unmuting happens when the sender stops (Ctrl+C or closing the window).
+- If discovery can't find the receiver (some routers and guest Wi-Fi block broadcasts), pass its IP directly: `oneaudio-send 192.168.1.42`. Find it with `ipconfig` on the receiving PC (**IPv4 Address**).
+- The receiver IP must be a full address like `192.168.1.42`. Short forms like `192.168.128` are rejected, because Windows would silently send them somewhere else.
+
+## Updates
+
+Both commands check for a new release when they start and print a notice if one exists. To install it:
+
+```
+oneaudio-send --update
+```
+
+(`oneaudio-receive --update` works the same.) It downloads the latest installer and runs it silently after one admin prompt. Running the installer by hand also works: it detects the existing install and upgrades it in place. Check your version with `--version`.
 
 ## Firewall
 

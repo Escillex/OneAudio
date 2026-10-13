@@ -5,11 +5,18 @@ import socket
 import struct
 import threading
 import time
+import uuid
 from array import array
 
 import pyaudiowpatch as pyaudio
 
+import updater
+
 HEADER = struct.Struct("<IHI")  # sample_rate, channels, seq
+# Discovery (see sender.discover): broadcast probe in, "here" + PC name back.
+DISCOVER = b"ONEAUDIO:DISCOVER"
+HERE = b"ONEAUDIO:HERE:"
+INSTANCE = uuid.uuid4().hex[:8]  # lets the sender dedupe replies arriving via several interfaces
 RESET_GAP = 50  # seq jumping back more than this = sender restarted
 
 
@@ -152,6 +159,12 @@ def receive_loop(sock, player, stop):
             continue
         except OSError:
             continue
+        if data == DISCOVER:
+            try:
+                sock.sendto(HERE + f"{INSTANCE}:{socket.gethostname()}".encode(), addr)
+            except OSError:
+                pass
+            continue
         if len(data) <= HEADER.size:
             continue
         rate, channels, seq = HEADER.unpack_from(data)
@@ -178,13 +191,20 @@ def receive_loop(sock, player, stop):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Play audio streamed by sender.py.")
+    ap = argparse.ArgumentParser(description="Play audio streamed by oneaudio-send.")
     ap.add_argument("--port", type=int, default=50007)
     ap.add_argument("--buffer-ms", type=int, default=40)
+    ap.add_argument("--update", action="store_true", help="install the latest release")
+    ap.add_argument("--version", action="version", version=f"OneAudio {updater.VERSION or 'dev'}")
     args = ap.parse_args()
+    if args.update:
+        raise SystemExit(updater.update())
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
+    # We reply to discovery probes; don't let an ICMP error from that break recvfrom.
+    if hasattr(socket, "SIO_UDP_CONNRESET"):
+        sock.ioctl(socket.SIO_UDP_CONNRESET, False)
     try:
         sock.bind(("0.0.0.0", args.port))
     except OSError as e:
@@ -199,6 +219,7 @@ def main():
     t.start()
 
     print(f"Listening on port {args.port} (buffer {args.buffer_ms} ms). Ctrl+C to stop.")
+    updater.check_in_background()
     try:
         while t.is_alive():
             if player.wanted and player.wanted != player.fmt:

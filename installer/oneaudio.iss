@@ -21,6 +21,11 @@ UninstallDisplayIcon={app}\oneaudio-receive.exe
 WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
+VersionInfoVersion={#AppVersion}
+; Same AppId = upgrades in place (keeps install dir and task choices).
+; Close running oneaudio-send/receive so their files can be replaced.
+CloseApplications=force
+RestartApplications=no
 
 [Tasks]
 Name: addtopath; Description: "Add OneAudio to PATH (use oneaudio-send / oneaudio-receive from any terminal)"
