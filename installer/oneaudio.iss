@@ -23,18 +23,28 @@ Compression=lzma2
 SolidCompression=yes
 VersionInfoVersion={#AppVersion}
 ; Same AppId = upgrades in place (keeps install dir and task choices).
-; Close running oneaudio-send/receive so their files can be replaced.
+; Close running oneaudio-send/receive/tray so their files can be replaced.
 CloseApplications=force
 RestartApplications=no
 
 [Tasks]
 Name: addtopath; Description: "Add OneAudio to PATH (use oneaudio-send / oneaudio-receive from any terminal)"
 Name: firewall; Description: "Allow the receiver through Windows Firewall (Private networks)"
+Name: startmenu; Description: "Start menu shortcuts (OneAudio Sender / Receiver, run in the tray)"
+Name: desktopicon; Description: "Desktop shortcuts"; Flags: unchecked
 
 [Files]
 Source: "..\dist\oneaudio-send.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\oneaudio-receive.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\oneaudio-tray.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+; oneaudio-tray.exe is the windowed build, so no console flashes up.
+Name: "{autoprograms}\OneAudio Sender"; Filename: "{app}\oneaudio-tray.exe"; Parameters: "send"; Tasks: startmenu
+Name: "{autoprograms}\OneAudio Receiver"; Filename: "{app}\oneaudio-tray.exe"; Parameters: "receive"; Tasks: startmenu
+Name: "{autodesktop}\OneAudio Sender"; Filename: "{app}\oneaudio-tray.exe"; Parameters: "send"; Tasks: desktopicon
+Name: "{autodesktop}\OneAudio Receiver"; Filename: "{app}\oneaudio-tray.exe"; Parameters: "receive"; Tasks: desktopicon
 
 [Registry]
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
@@ -48,6 +58,12 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 Filename: "{sys}\netsh.exe"; \
   Parameters: "advfirewall firewall add rule name=""OneAudio Receiver"" dir=in action=allow program=""{app}\oneaudio-receive.exe"" protocol=UDP profile=private enable=yes"; \
   Flags: runhidden; Tasks: firewall
+Filename: "{sys}\netsh.exe"; \
+  Parameters: "advfirewall firewall add rule name=""OneAudio Receiver"" dir=in action=allow program=""{app}\oneaudio-tray.exe"" protocol=UDP profile=private enable=yes"; \
+  Flags: runhidden; Tasks: firewall
+; "Install update" from the tray passes /RELAUNCH=send|receive to reopen it afterwards.
+Filename: "{app}\oneaudio-tray.exe"; Parameters: "send"; Flags: nowait runasoriginaluser; Check: Relaunch('send')
+Filename: "{app}\oneaudio-tray.exe"; Parameters: "receive"; Flags: nowait runasoriginaluser; Check: Relaunch('receive')
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""OneAudio Receiver"""; \
@@ -67,6 +83,11 @@ begin
     exit;
   end;
   Result := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Path) + ';') = 0;
+end;
+
+function Relaunch(Role: string): Boolean;
+begin
+  Result := CompareText(ExpandConstant('{param:RELAUNCH|}'), Role) = 0;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

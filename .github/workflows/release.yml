@@ -19,7 +19,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          pip install PyAudioWPatch pyinstaller
+          pip install PyAudioWPatch pystray pillow pyinstaller
           choco install innosetup -y --no-progress
 
       - name: Build
